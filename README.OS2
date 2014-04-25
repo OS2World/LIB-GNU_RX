@@ -1,0 +1,16 @@
+This copy of GNU rx 1.0 has been compiled for OS/2 using the emx 0.9b
+development tools. 
+
+An up to date copy should always be available as
+
+  ftp://ftp.leo.org/pub/comp/os/os2/gnu/devtools/gnurx.zip
+
+Kai Uwe Rommel
+
+--
+/* Kai Uwe Rommel      ARS Computer & Consulting GmbH, Muenchen, Germany *
+ * rommel@ars.de             CompuServe 100265,2651, Fax +49 89 324 4524 *
+ * rommel@leo.org (ftp.leo.org:/pub/comp/os/os2 maintenance)             */
+
+DOS ... is still a real mode only non-reentrant interrupt
+handler, and always will be.                -Russell Williams

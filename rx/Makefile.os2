@@ -1,0 +1,82 @@
+# Makefile for librx
+# Copyright (C) 1994 Free Software Foundation, Inc.
+# 
+# This file is part of GNU Rx
+# 
+# GNU Rx is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+# 
+# GNU Rx is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with GNU Rx; see the file COPYING.LIB.  If not, write to
+# the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+release:
+	$(MAKE) -f Makefile.os2 gnurx.dll rx.lib \
+	CC="gcc -Zomf -O" O=".obj" DFLAGS="-Zcrtdll -Zdll"
+debug:
+	$(MAKE) -f Makefile.os2 rx.a \
+	CC="gcc -g" O=".o" DFLAGS="" AR="ar" RANLIB="ar s"
+
+OBJS =	hashrexp$O rx$O rxanal$O rxbasic$O rxbitset$O rxcset$O \
+	rxdbug$O rxgnucomp$O rxhash$O rxnfa$O rxnode$O rxposix$O rxsimp$O \
+	rxspencer$O rxstr$O rxsuper$O rxunfa$O
+
+.SUFFIXES: .c $O
+
+.c$O:
+	$(CC) -c $(CFLAGS) -I. $<
+
+rx.a: $(OBJS)
+	rm -f $@
+	$(AR) cr $@ $(OBJS)
+	$(RANLIB) $@
+
+rx.lib: gnurx.def
+	emximp -o $@ gnurx.def
+
+gnurx.dll: $(OBJS) gnurx.def
+	$(CC) -o $@ $(OBJS) gnurx.def $(DFLAGS)
+
+hashrexp$O : hashrexp.c rxall.h rxnode.h rxbitset.h rxcset.h \
+  rxhash.h 
+runtests$O : runtests.c rxall.h rxposix.h rxspencer.h \
+  rxproto.h rxnode.h rxbitset.h rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h \
+  rxnfa.h rxcontext.h testcases.h 
+rx$O : rx.c rxall.h rxhash.h rxbitset.h rxnfa.h _rx.h \
+  rxcset.h rxnode.h 
+rxanal$O : rxanal.c rxall.h rxanal.h rxcset.h rxbitset.h \
+  rxnode.h rxsuper.h rxnfa.h _rx.h rxhash.h 
+rxbasic$O : rxbasic.c rxall.h rxbasic.h rxcontext.h rxnode.h \
+  rxbitset.h rxcset.h rxspencer.h rxproto.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h \
+  rxnfa.h rxstr.h 
+rxbitset$O : rxbitset.c rxall.h rxbitset.h 
+rxcset$O : rxcset.c rxall.h rxcset.h rxbitset.h 
+rxdbug$O : rxdbug.c rxall.h rxgnucomp.h rxcset.h rxbitset.h \
+  rxnode.h rxnfa.h _rx.h rxhash.h 
+rxgnucomp$O : rxgnucomp.c rxall.h rxgnucomp.h rxcset.h \
+  rxbitset.h rxnode.h 
+rxhash$O : rxhash.c rxall.h rxhash.h rxbitset.h 
+rxnfa$O : rxnfa.c rxall.h rxnfa.h _rx.h rxhash.h rxbitset.h \
+  rxcset.h rxnode.h 
+rxnode$O : rxnode.c rxall.h rxnode.h rxbitset.h rxcset.h 
+rxposix$O : rxposix.c rxall.h rxposix.h rxspencer.h rxproto.h \
+  rxnode.h rxbitset.h rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h \
+  rxcontext.h rxgnucomp.h rxbasic.h rxsimp.h 
+rxsimp$O : rxsimp.c rxall.h rxsimp.h rxcset.h rxbitset.h \
+  rxnode.h 
+rxspencer$O : rxspencer.c rxall.h rxspencer.h rxproto.h \
+  rxnode.h rxbitset.h rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h 
+rxstr$O : rxstr.c rxall.h rxstr.h rxspencer.h rxproto.h \
+  rxnode.h rxbitset.h rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h \
+  rxcontext.h 
+rxsuper$O : rxsuper.c rxall.h rxsuper.h rxnfa.h _rx.h \
+  rxhash.h rxbitset.h rxcset.h rxnode.h 
+rxunfa$O : rxunfa.c rxall.h rx.h rxhash.h rxbitset.h rxunfa.h \
+  _rx.h rxcset.h rxnfa.h rxnode.h 

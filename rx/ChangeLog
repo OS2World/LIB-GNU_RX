@@ -1,0 +1,5 @@
+Sat Dec 30 21:19:31 1995  Tom Lord  <lord@beehive>
+
+	* *.[ch]: posixification and algorithmic improvement (thanks
+	henry!).
+

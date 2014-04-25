@@ -1,0 +1,946 @@
+This is Info file rx.info, produced by Makeinfo-1.63 from the input
+file rx.texi.
+
+
+File: rx.info,  Node: Top,  Next: Posix Entry Points,  Prev: (dir),  Up: (dir)
+
+Rx
+**
+
+   This document describes Rx.
+
+   This document applies to version "Rx-diSpencer" of the library named
+librx.a
+
+* Menu:
+
+* Posix Entry Points::
+* Performance Considerations::  Special considerations when using Rx.
+* Semantic Tests::              A test-suite for Posix matcher semantics.
+* General Functions::           Rx's native entry points.
+* Rx Theory::                   A quick tour of the implementation.
+* Improvements to Make::        The Rx TODO list.
+
+
+File: rx.info,  Node: Posix Entry Points,  Next: Performance Considerations,  Prev: Top,  Up: Top
+
+Regular Expression Matching
+===========================
+
+   This section is excerpted from *The GNU C Library* reference manual
+by Sandra Loosemore with Richard M. Stallman, Roland McGrath, and Andrew
+Oram.
+
+   The GNU C library supports the standard POSIX.2 interface.  Programs
+using this interface should include the header file `rx.h'.
+
+* Menu:
+
+* POSIX Regexp Compilation::    Using `regcomp' to prepare to match.
+* Flags for POSIX Regexps::     Syntax variations for `regcomp'.
+* Matching POSIX Regexps::      Using `regexec' to match the compiled
+				   pattern that you get from `regcomp'.
+* Regexp Subexpressions::       Finding which parts of the string were matched.
+* Subexpression Complications:: Find points of which parts were matched.
+* Regexp Cleanup::		Freeing storage; reporting errors.
+
+
+File: rx.info,  Node: POSIX Regexp Compilation,  Next: Flags for POSIX Regexps,  Up: Posix Entry Points
+
+POSIX Regular Expression Compilation
+------------------------------------
+
+   Before you can actually match a regular expression, you must
+"compile" it.  This is not true compilation--it produces a special data
+structure, not machine instructions.  But it is like ordinary
+compilation in that its purpose is to enable you to "execute" the
+pattern fast.  (*Note Matching POSIX Regexps::, for how to use the
+compiled regular expression for matching.)
+
+   There is a special data type for compiled regular expressions:
+
+ - Data Type: regex_t
+     This type of object holds a compiled regular expression.  It is
+     actually a structure.  It has just one field that your programs
+     should look at:
+
+    `re_nsub'
+          This field holds the number of parenthetical subexpressions
+          in the regular expression that was compiled.
+
+     There are several other fields, but we don't describe them here,
+     because only the functions in the library should use them.
+
+   After you create a `regex_t' object, you can compile a regular
+expression into it by calling `regcomp'.
+
+ - Function: int regcomp (regex_t *COMPILED, const char *PATTERN, int
+          CFLAGS)
+     The function `regcomp' "compiles" a regular expression into a data
+     structure that you can use with `regexec' to match against a
+     string.  The compiled regular expression format is designed for
+     efficient matching.  `regcomp' stores it into `*COMPILED'.
+
+     It's up to you to allocate an object of type `regex_t' and pass its
+     address to `regcomp'.
+
+     The argument CFLAGS lets you specify various options that control
+     the syntax and semantics of regular expressions.  *Note Flags for
+     POSIX Regexps::.
+
+     If you use the flag `REG_NOSUB', then `regcomp' omits from the
+     compiled regular expression the information necessary to record
+     how subexpressions actually match.  In this case, you might as well
+     pass `0' for the MATCHPTR and NMATCH arguments when you call
+     `regexec'.
+
+     If you don't use `REG_NOSUB', then the compiled regular expression
+     does have the capacity to record how subexpressions match.  Also,
+     `regcomp' tells you how many subexpressions PATTERN has, by
+     storing the number in `COMPILED->re_nsub'.  You can use that value
+     to decide how long an array to allocate to hold information about
+     subexpression matches.
+
+     `regcomp' returns `0' if it succeeds in compiling the regular
+     expression; otherwise, it returns a nonzero error code (see the
+     table below).  You can use `regerror' to produce an error message
+     string describing the reason for a nonzero value; see *Note Regexp
+     Cleanup::.
+
+
+   Here are the possible nonzero values that `regcomp' can return:
+
+`REG_BADBR'
+     There was an invalid `\{...\}' construct in the regular
+     expression.  A valid `\{...\}' construct must contain either a
+     single number, or two numbers in increasing order separated by a
+     comma.
+
+`REG_BADPAT'
+     There was a syntax error in the regular expression.
+
+`REG_BADRPT'
+     A repetition operator such as `?' or `*' appeared in a bad
+     position (with no preceding subexpression to act on).
+
+`REG_ECOLLATE'
+     The regular expression referred to an invalid collating element
+     (one not defined in the current locale for string collation).
+
+`REG_ECTYPE'
+     The regular expression referred to an invalid character class name.
+
+`REG_EESCAPE'
+     The regular expression ended with `\'.
+
+`REG_ESUBREG'
+     There was an invalid number in the `\DIGIT' construct.
+
+`REG_EBRACK'
+     There were unbalanced square brackets in the regular expression.
+
+`REG_EPAREN'
+     An extended regular expression had unbalanced parentheses, or a
+     basic regular expression had unbalanced `\(' and `\)'.
+
+`REG_EBRACE'
+     The regular expression had unbalanced `\{' and `\}'.
+
+`REG_ERANGE'
+     One of the endpoints in a range expression was invalid.
+
+`REG_ESPACE'
+     `regcomp' ran out of memory.
+
+
+File: rx.info,  Node: Flags for POSIX Regexps,  Next: Matching POSIX Regexps,  Prev: POSIX Regexp Compilation,  Up: Posix Entry Points
+
+Flags for POSIX Regular Expressions
+-----------------------------------
+
+   These are the bit flags that you can use in the CFLAGS operand when
+compiling a regular expression with `regcomp'.
+
+`REG_EXTENDED'
+     Treat the pattern as an extended regular expression, rather than
+     as a basic regular expression.
+
+`REG_ICASE'
+     Ignore case when matching letters.
+
+`REG_NOSUB'
+     Don't bother storing the contents of the MATCHES-PTR array.
+
+`REG_NEWLINE'
+     Treat a newline in STRING as dividing STRING into multiple lines,
+     so that `$' can match before the newline and `^' can match after.
+     Also, don't permit `.' to match a newline, and don't permit
+     `[^...]' to match a newline.
+
+     Otherwise, newline acts like any other ordinary character.
+
+
+File: rx.info,  Node: Matching POSIX Regexps,  Next: Regexp Subexpressions,  Prev: Flags for POSIX Regexps,  Up: Posix Entry Points
+
+Matching a Compiled POSIX Regular Expression
+--------------------------------------------
+
+   Once you have compiled a regular expression, as described in *Note
+POSIX Regexp Compilation::, you can match it against strings using
+`regexec'.  A match anywhere inside the string counts as success,
+unless the regular expression contains anchor characters (`^' or `$').
+
+ - Function: int regexec (regex_t *COMPILED, char *STRING, size_t
+          NMATCH, regmatch_t MATCHPTR [], int EFLAGS)
+     This function tries to match the compiled regular expression
+     `*COMPILED' against STRING.
+
+     `regexec' returns `0' if the regular expression matches;
+     otherwise, it returns a nonzero value.  See the table below for
+     what nonzero values mean.  You can use `regerror' to produce an
+     error message string describing the reason for a nonzero value;
+     see *Note Regexp Cleanup::.
+
+     The argument EFLAGS is a word of bit flags that enable various
+     options.
+
+     If you want to get information about what part of STRING actually
+     matched the regular expression or its subexpressions, use the
+     arguments MATCHPTR and NMATCH.  Otherwise, pass `0' for NMATCH,
+     and `NULL' for MATCHPTR.  *Note Regexp Subexpressions::.
+
+   You must match the regular expression with the same set of current
+locales that were in effect when you compiled the regular expression.
+
+   The function `regexec' accepts the following flags in the EFLAGS
+argument:
+
+`REG_NOTBOL'
+     Do not regard the beginning of the specified string as the
+     beginning of a line; more generally, don't make any assumptions
+     about what text might precede it.
+
+`REG_NOTEOL'
+     Do not regard the end of the specified string as the end of a
+     line; more generally, don't make any assumptions about what text
+     might follow it.
+
+   Here are the possible nonzero values that `regexec' can return:
+
+`REG_NOMATCH'
+     The pattern didn't match the string.  This isn't really an error.
+
+`REG_ESPACE'
+     `regexec' ran out of memory.
+
+
+File: rx.info,  Node: Regexp Subexpressions,  Next: Subexpression Complications,  Prev: Matching POSIX Regexps,  Up: Posix Entry Points
+
+Match Results with Subexpressions
+---------------------------------
+
+   When `regexec' matches parenthetical subexpressions of PATTERN, it
+records which parts of STRING they match.  It returns that information
+by storing the offsets into an array whose elements are structures of
+type `regmatch_t'.  The first element of the array (index `0') records
+the part of the string that matched the entire regular expression.
+Each other element of the array records the beginning and end of the
+part that matched a single parenthetical subexpression.
+
+ - Data Type: regmatch_t
+     This is the data type of the MATCHARRAY array that you pass to
+     `regexec'.  It containes two structure fields, as follows:
+
+    `rm_so'
+          The offset in STRING of the beginning of a substring.  Add
+          this value to STRING to get the address of that part.
+
+    `rm_eo'
+          The offset in STRING of the end of the substring.
+
+ - Data Type: regoff_t
+     `regoff_t' is an alias for another signed integer type.  The
+     fields of `regmatch_t' have type `regoff_t'.
+
+   The `regmatch_t' elements correspond to subexpressions positionally;
+the first element (index `1') records where the first subexpression
+matched, the second element records the second subexpression, and so
+on.  The order of the subexpressions is the order in which they begin.
+
+   When you call `regexec', you specify how long the MATCHPTR array is,
+with the NMATCH argument.  This tells `regexec' how many elements to
+store.  If the actual regular expression has more than NMATCH
+subexpressions, then you won't get offset information about the rest of
+them.  But this doesn't alter whether the pattern matches a particular
+string or not.
+
+   If you don't want `regexec' to return any information about where
+the subexpressions matched, you can either supply `0' for NMATCH, or
+use the flag `REG_NOSUB' when you compile the pattern with `regcomp'.
+
+
+File: rx.info,  Node: Subexpression Complications,  Next: Regexp Cleanup,  Prev: Regexp Subexpressions,  Up: Posix Entry Points
+
+Complications in Subexpression Matching
+---------------------------------------
+
+   Sometimes a subexpression matches a substring of no characters.  This
+happens when `f\(o*\)' matches the string `fum'.  (It really matches
+just the `f'.)  In this case, both of the offsets identify the point in
+the string where the null substring was found.  In this example, the
+offsets are both `1'.
+
+   Sometimes the entire regular expression can match without using some
+of its subexpressions at all--for example, when `ba\(na\)*' matches the
+string `ba', the parenthetical subexpression is not used.  When this
+happens, `regexec' stores `-1' in both fields of the element for that
+subexpression.
+
+   Sometimes matching the entire regular expression can match a
+particular subexpression more than once--for example, when `ba\(na\)*'
+matches the string `bananana', the parenthetical subexpression matches
+three times.  When this happens, `regexec' usually stores the offsets
+of the last part of the string that matched the subexpression.  In the
+case of `bananana', these offsets are `6' and `8'.
+
+   But the last match is not always the one that is chosen.  It's more
+accurate to say that the last *opportunity* to match is the one that
+takes precedence.  What this means is that when one subexpression
+appears within another, then the results reported for the inner
+subexpression reflect whatever happened on the last match of the outer
+subexpression.  For an example, consider `\(ba\(na\)*s \)*' matching
+the string `bananas bas '.  The last time the inner expression actually
+matches is near the end of the first word.  But it is *considered*
+again in the second word, and fails to match there.  `regexec' reports
+nonuse of the "na" subexpression.
+
+   Another place where this rule applies is when the regular expression
+`\(ba\(na\)*s \|nefer\(ti\)* \)*' matches `bananas nefertiti'.  The
+"na" subexpression does match in the first word, but it doesn't match
+in the second word because the other alternative is used there.  Once
+again, the second repetition of the outer subexpression overrides the
+first, and within that second repetition, the "na" subexpression is not
+used.  So `regexec' reports nonuse of the "na" subexpression.
+
+
+File: rx.info,  Node: Regexp Cleanup,  Prev: Subexpression Complications,  Up: Posix Entry Points
+
+POSIX Regexp Matching Cleanup
+-----------------------------
+
+   When you are finished using a compiled regular expression, you can
+free the storage it uses by calling `regfree'.
+
+ - Function: void regfree (regex_t *COMPILED)
+     Calling `regfree' frees all the storage that `*COMPILED' points
+     to.  This includes various internal fields of the `regex_t'
+     structure that aren't documented in this manual.
+
+     `regfree' does not free the object `*COMPILED' itself.
+
+   You should always free the space in a `regex_t' structure with
+`regfree' before using the structure to compile another regular
+expression.
+
+   When `regcomp' or `regexec' reports an error, you can use the
+function `regerror' to turn it into an error message string.
+
+ - Function: size_t regerror (int ERRCODE, regex_t *COMPILED, char
+          *BUFFER, size_t LENGTH)
+     This function produces an error message string for the error code
+     ERRCODE, and stores the string in LENGTH bytes of memory starting
+     at BUFFER.  For the COMPILED argument, supply the same compiled
+     regular expression structure that `regcomp' or `regexec' was
+     working with when it got the error.  Alternatively, you can supply
+     `NULL' for COMPILED; you will still get a meaningful error
+     message, but it might not be as detailed.
+
+     If the error message can't fit in LENGTH bytes (including a
+     terminating null character), then `regerror' truncates it.  The
+     string that `regerror' stores is always null-terminated even if it
+     has been truncated.
+
+     The return value of `regerror' is the minimum length needed to
+     store the entire error message.  If this is less than LENGTH, then
+     the error message was not truncated, and you can use it.
+     Otherwise, you should call `regerror' again with a larger buffer.
+
+     Here is a function which uses `regerror', but always dynamically
+     allocates a buffer for the error message:
+
+          char *get_regerror (int errcode, regex_t *compiled)
+          {
+            size_t length = regerror (errcode, compiled, NULL, 0);
+            char *buffer = xmalloc (length);
+            (void) regerror (errcode, compiled, buffer, length);
+            return buffer;
+          }
+
+
+File: rx.info,  Node: Performance Considerations,  Next: Semantic Tests,  Prev: Posix Entry Points,  Up: Top
+
+Performance Considerations
+==========================
+
+   In order to use the Rx implementation of Posix regexp functions, you
+should include `<rxposix.h>' in your program.
+
+   In order to use the Rx implementation of Posix regexp functions most
+effectively, it may help to know a bit about performance tuning in Rx.
+
+* Menu:
+
+* Avoiding Redundant Compilations ::  Compiling Regexps is costly.
+* Controlling Memory Use::      You can limit Rx's memory use.
+
+
+File: rx.info,  Node: Avoiding Redundant Compilations,  Next: Controlling Memory Use,  Prev: Performance Considerations,  Up: Performance Considerations
+
+Avoiding Redundant Compilations
+-------------------------------
+
+   Rx implements the Posix regexp entry points `regcomp', `regerror',
+`regexec', and `regfree'.  Some special considerations apply when using
+the Rx versions.
+
+   First, `regcomp' is a comparatively expensive operation.
+Addiitonally, `regexec' tends to perform better when a compiled
+expression is compiled once and used twice than when the pattern is
+compiled twice and used twice.  Internally, Rx caches that information
+about a pattern which is constructed dynamicly by regexec.  You can save
+on compilation costs and maximize the effectiveness of the Rx cache by
+re-using compiled expressions when it is convenient.
+
+   For example, for reasons unrelated to Rx, it has long been the
+practice in GNU emacs to always save one compiled regular expression
+(the most recent).  Before compiling a new expression, Emacs checks to
+see if the new pattern is the same as the one that is already compiled.
+This is the sort of optimization that Rx likes.  (It may even win, in
+some cases, to cache more than a single compiled regexp.)
+
+   In the long-run, Rx should be modified to cache compilations on its
+own.  (*Note Improvements to Make::.)
+
+   Sometimes programmers write programs with many regexps, all known
+staticly at compile time.  This can be a problem with Rx because when
+the program starts up, or as it runs, all of those staticly known
+regexps have to be compiled, which may be too time consuming.
+
+   One easy fix for programs with many static regexps is to use `flex'
+or another lexical-analyzer generator program instead.  Lexer-generators
+are optimized for the case of compiling staticly known regexps.
+
+   There are still reasons why staticly known regexps may not be
+convertable to `flex' input - for example, the Posix pattern language
+is more general than `flex''s.  In the long-run, it may be a good idea
+to extend Rx to support static compilation of regexps.  (*Note
+Improvements to Make::.)
+
+
+File: rx.info,  Node: Controlling Memory Use,  Prev: Avoiding Redundant Compilations,  Up: Performance Considerations
+
+Controlling Memory Use
+----------------------
+
+   The size of the cache used by regexec is subject to control by
+programmers.  Additionally, by using lower level entry points,
+programmers can create multiple, distinct Rx caches.
+
+   This part of the code is subject to change and so is not yet
+documented.
+
+   See "default_cache" in rxsuper.c and the parameters at the top of
+"rxbasic.c" to find some parameters you can tune or hints about creating
+alternative regexec caches.
+
+
+File: rx.info,  Node: Semantic Tests,  Next: General Functions,  Prev: Performance Considerations,  Up: Top
+
+Semantic Tests
+==============
+
+   The distribution of *Rx* includes a test-suite, aimed at testing the
+conformance of an implementation of the Posix regexp functions to the
+standard.
+
+   Currently, the tests come from two sources: a test-suite started by
+Henry Spencer, and the "Khadafy" test suite by Scott Anderson.
+
+   The tests come in three files:
+
+   * runtests.c	- The driver program.
+
+   * TESTS		- The list of test cases
+
+   * TESTS2C.sed	- A script to convert test cases into C.
+
+* Menu:
+
+* Running the Tests::           Invoking the test suite.
+* Adding New Tests::            Extending the test suite.
+
+
+File: rx.info,  Node: Running the Tests,  Next: Adding New Tests,  Prev: Semantic Tests,  Up: Semantic Tests
+
+Running the Tests
+-----------------
+
+   To build the test program, use `make runtests'.  (Detailed
+configuration and build instructions can be found in INSTALL).
+
+   Invoked with no arguments, `runtests' runs all test-cases.  For each
+test case, a sequence number is printed.  If there is a problem with
+that case, more information is printed.   Output like this:
+
+     #0
+     #1
+     #2
+     ...
+
+   indicates a successful run.   (The output format is likely to change
+in the future to make it easier to automate testing of Rx.)
+
+   With a single numeric argument, runtests executes just that test and
+no others.  This is handy when debugging.
+
+   Sometimes a bug will occur when all tests are run, but disappear when
+just the problematic test is run.  Usually this has to do with memory
+or cache corruption.
+
+
+File: rx.info,  Node: Adding New Tests,  Prev: Running the Tests,  Up: Semantic Tests
+
+Adding New Tests
+----------------
+
+   This list of tests used by `runtests' is found in the file `TESTS'.
+Each line of that file is a list of colon separated fields similar to:
+
+     1:^(ab|cd)e:abcde
+
+   The first field is the expected return value of regexec, or '2'
+meaning that the pattern is not valid.
+
+   The second field is the regular expression being tested.
+
+   The third field is the string to which the pattern is to be compared.
+
+   The file `TESTS2C.sed' is used to convert the test cases into
+initializers for an array of structures (which is automated in the
+Makefile).
+
+   To add a new test case, add lines to `TESTS' and recompile
+`runtests'.
+
+
+File: rx.info,  Node: General Functions,  Next: Rx Theory,  Prev: Semantic Tests,  Up: Top
+
+General Functions
+=================
+
+   Here is a whirlwind tour of the lower-level Rx entry points and data
+structures.  This is not intended to be complete, but rather to be a
+help to anyone reading the code itself.
+
+   These are presented in the same order in which they might typically
+be used.
+
+* Menu:
+
+* Compiling Expressions::       Strings->Syntax Trees
+* Posixly Correct Matches::     Checking for a Posixly correct match.
+* Hairy Matches::               Matching with multi-part strings.
+* NFA Functions::               Forget Posix, eat NFAs raw.
+
+
+File: rx.info,  Node: Compiling Expressions,  Next: Posixly Correct Matches,  Prev: General Functions,  Up: General Functions
+
+Compiling Expressions
+---------------------
+
+ - Internal Function: reg_errcode_t rx_parse (struct rexp_node **
+          rexp_p, __const__ char *pattern, int size, unsigned long
+          syntax, int cset_size, unsigned char *translate);
+     Compile a regular expression.
+
+     REXP_P will return a syntax tree for the pattern.  See
+     `"rxnode.h"' to learn about syntax trees.  Minimally, you should
+     know that syntax trees are reference counted using `rx_save_rexp'
+     and `rx_free_rexp'.
+
+     PATTERN and SIZE are the expression and its length.  The
+     expression need not be 0-terminated.
+
+     The bits set in SYNTAX control details of the language understood
+     by the parser.  The meaning of each bit is described in
+     `"rxgnucomp.h"'.
+
+     CSET_SIZE is usually 256.  It should not be much larger than that
+     or space-performance will suffer badly.
+
+     TRANSLATE is a translation table - an array of characters.
+     Characters in the pattern are looked up in TRANSLATE as they are
+     read.  Additionally, the pattern is compiled presuming that the
+     same translation table will be applied to characters in the string
+     being searched (meaning that the pattern is compiled in such a way
+     that the effect will be as if every character in the target string
+     is looked up in the translation table, even though the expense of
+     that lookup is usually avoided).
+
+     A return of 0 indicates success, otherwise, the error can be
+     looked up in the `rx_error_msg' array.
+
+ - Internal Function: int rx_posix_analyze_rexp (struct rexp_node ***
+          subexps, int * n_subexps, struct rexp_node * node, int id)
+     Staticly analyze a regular expression in preparation for matching.
+
+     This function fills in some fields of the nodes of a syntax tree.
+
+     `subexps' and `n_subexps' return a malloced array of pointers into
+     the syntax tree, one per parenthesized subexpression.  The caller
+     must eventually free this array.
+
+     `node' is the pattern to be analyzed.  The tree returned by
+     `rx_parse' is suitable for this.
+
+     `id' should be 1.
+
+     Ignore the return value.
+
+     This function is not robust in the case that `malloc' or `realloc'
+     returns 0 (which should be fixed).
+
+   You might expect that `rx_posix_analyze_rexp' and `rx_parse' should
+be combined.  They are not because the actions of
+`rx_posix_analyze_rexp' make sense for any syntax tree, regardless of
+how it is constructed.  `rx_parse' is just one way to build a syntax
+tree - it is subject to replacement and trees can be built without
+using a parser at all (c.f. `"rxnode.h"').
+
+
+File: rx.info,  Node: Posixly Correct Matches,  Next: Hairy Matches,  Prev: Compiling Expressions,  Up: General Functions
+
+Checking for Posixly Correct Matches with One-Piece Strings
+-----------------------------------------------------------
+
+   Looking for a match that is Posixly correct is conceptually tricky.
+Here is one way to think of it:
+
+   The Posix expression languages, absent of any consideration of the
+meaning of "leftmost-longest", underspecify the return value of
+`regexec'.  Consider the example:
+
+     Pattern:
+     	foo\(.*\)\(.*\)bar
+     Target string:
+     	fooxxxbar
+
+   Initially it is ambiguous how this should be matched.  The ambiguity
+is exposed by considering the possible bindings for the subexpressions
+`\1' and `\2':
+
+     Possible outcomes:
+     
+     	\1 == "xxx" \2 == ""
+     	\1 == "xx" \2 == "x"
+     	\1 == "x" \2 == "xx"
+     	\1 == "" \2 == "xxx"
+
+   Posix tells us that the first outcome is the prefered one if the
+illustrated pattern is used alone (this is a consequence of the
+"leftmost longest" rule).  But Posix also says the answer may be
+different if the pattern is a sub-pattern of a larger pattern.  For
+example:
+
+     Pattern:
+     	foo\(.*\)\(.*\)bar\2
+     Target string:
+     	fooxxxbarxx
+
+   Now the only acceptable outcome is:
+
+     	\1 == "x" \2 == "xx"
+
+   Three entry points provide a relatively simple interface to this
+moderately complicated situation:
+
+ - Internal Function: struct rx_solutions * rx_basic_make_solutions
+          (struct rx_registers * regs, struct rexp_node * expression,
+          struct rexp_node ** subexps, int start, int end, struct
+          rx_context_rules * rules, char * str)
+ - Internal Function: void rx_basic_free_solutions (struct rx_solutions
+          * solns);
+ - Internal Function: enum rx_answers rx_next_solution (struct
+          rx_solutions * solns)
+ - Internal Function: void rx_basic_free_solutions (struct rx_solutions
+          * solns)
+     `make_solutions' returns a lazilly constructed stream of possible
+     solutions for a given regexp and target string.
+
+     `next_solution' constructs and returns the next solution from a
+     list returned by `make_solutions'.  Solutions are returned in order
+     of preferability according to the Posix spec.  So, the first
+     solution is the leftmost-longest, and the last, the
+     rightmost-shortest.
+
+     REGS is where subexpression extents are tracked.
+
+     EXPRESSION is the expression to solve.
+
+     SUBEXPS is as returned by `rx_posix_analyze_rexp'.
+
+     START and END are the integer addresses of the data to be compared
+     to the pattern.  A solution must match all characters starting at
+     START and ending at `END - 1'.
+
+     RULES are some bits that control the precise meaning of "^" and
+     "$".  See `"rxcontext.h"'.
+
+     STR is the data to be matched.  Note that anchoring operators can
+     cause the matcher to look beyond START and END when testing a
+     match.  It may make sense to pass START > 0, for example.
+
+     `make_solutions' returns a pointer to a solution list, or 0 if an
+     allocation fails.
+
+     `next_solution' returns a status which can be:
+          `rx_yes'	-- The pattern matches exactly.
+          `rx_maybe'	-- The pattern does not match, but might
+          		   if more characters were added to the string.
+          `rx_no'	-- The pattern does not match and could not be
+          		   made to match even by adding more characters.
+
+     In addition, REGS is filled in by `next_solution'.
+
+     Finally, `free_solutions' is used to release resources consumed by
+     a solution list.
+
+
+File: rx.info,  Node: Hairy Matches,  Next: NFA Functions,  Prev: Posixly Correct Matches,  Up: General Functions
+
+Hairy Matches and Suspendable Searches
+--------------------------------------
+
+   The functions `rx_basic_make_solutions' and
+`rx_basic_free_solutions' are used to find matches in a one-piece
+string.  More general entry points are provided for multi-piece strings,
+which may or may not be entirely available in memory at one time:
+
+ - Internal Function: struct rx_solutions * rx_make_solutions (struct
+          rx_registers * regs, struct rx_unfaniverse * verse, struct
+          rexp_node * expression, struct rexp_node ** subexps, int
+          cset_size, int start, int end, rx_vmfn vmfn, rx_contextfn
+          contextfn, void * closure)
+ - Internal Function: void rx_free_solutions (struct rx_solutions *
+          solns)
+     These functions are similar to their `_basic_' analogues, but
+     substitute some new parameters for the one piece string:
+
+     VMFN is a function provided by the caller that returns at least
+     part of the string being matched.
+
+     CONTEXTFN is a function provided by the caller that does the work
+     of the backreference operators, "^", and "$".
+
+     CLOSURE is data provided by the caller, passed through to vmfn and
+     contextfn.
+
+          typedef enum rx_answers (*rx_vmfn)
+               P((void * closure,
+          	unsigned char ** burst, int * len, int * offset,
+          	int start, int end, int need));
+          
+          typedef enum rx_answers (*rx_contextfn)
+               P((void * closure,
+          	int type,
+          	int start, int end,
+          	struct rx_registers * regs));
+
+     `vmfn' is asked for a range of characters from START to END.  NEED
+     is in that range and is the only position that must be returned by
+     vmfn.  BURST, LEN, and OFFSET are output parameters.  OFFSET will
+     get the integer address of burst, and LEN the number of valid
+     characters in the burst.  VMFN may be asked for the empty string
+     from END to END and should be able to handle that case.
+
+     If `vmfn' provides the needed character, it should return `rx_yes'.
+
+     If `vmfn' can't provide the character now, but might be able to
+     later, it should return `rx_maybe'.  This will cause
+     `rx_next_solution' to quickly return `rx_maybe'.   If
+     `rx_next_solution' is called again, it will retry the call to vmfn
+     and possibly resume the search.
+
+     If `vmfn' can not provide the needed character, it should return
+     `rx_no'.  `rx_next_solution' will not normally ask for
+     out-of-range characters, so usually there is no good reason to
+     return `rx_no', but the code is supposed to be robust in case you
+     do.
+
+     The `contextfn' also returns a `yes/no/maybe' status.  It tests
+     whether the characters in START to END satisfy the operator TYPE.
+     `type' is an ascii value; one of the characters in "^$123456789".
+
+
+File: rx.info,  Node: NFA Functions,  Prev: Hairy Matches,  Up: General Functions
+
+NFA Functions and Super-NFA Functions
+-------------------------------------
+
+   Not really documented yet.
+
+     rx.h, rxnfa.h		-- translating an expression into an NFA.
+     
+     rxsuper.h		-- optimizing the NFA into a DFA, or at least
+     			   an NFA with fewer branch points.
+     
+     rxanal.h		-- how to use DFAs to find longest matches,
+     			   matches of a specific length, the shortest
+     			   match, etc.
+     
+     rxsimp.h		-- Translating a Posix "regular
+     			   expression" into a true regular expression
+     			   that describes a superset language.
+
+
+File: rx.info,  Node: Rx Theory,  Next: Improvements to Make,  Prev: General Functions,  Up: Top
+
+Rx Theory
+=========
+
+   There are two match algorithms.  One is for truly regular regexps
+(those that can be reduced to a dfa).  The other is for non-regular
+regexps.
+
+   The dfa algorithm implements the idea suggested in `Compilers' by
+Aho, Sethi and Ullman:
+
+     [One] approach [to pattern matching regular expressions] is to use
+     a DFA, but avoid constructing all of the transition table by using
+     a technique called "lazy transition evaluation".  Here,
+     transitions are computed at run time [when] actually needed.
+     [T]ransitions are stored in a cache. [....] If the cache becomes
+     full, we can erase some previously computed transition to make
+     room for the new transition.
+
+   The implementation in Rx is generalized from that, but the above
+description covers what is used for Posix patterns.
+
+   The non-dfa algorithm implements a "recursive decomposition"
+technique described in email by Henry Spencer.  For a given pattern,
+this algorithm first checks to see if a simpler, superset language,
+DFA-pattern matches.  If it does, then this algorithm does the
+detail-work to see if the non-DFA pattern matches.
+
+   The detail work usually involves recursing on subpatterns.  For
+example, a concatentation of two subexpressions matches a string if the
+string can be divided into two parts, each matching one subexpression,
+in the right order.  More than one solution is often possible for a
+given pattern.  This ambiguity is the subject of the "leftmost longest"
+rules in the spec, and the back-tracking oriented stream-of-solution
+functions `rx_make_solutions', `rx_next_solution' and
+`rx_free_solutions'.
+
+     rxspencer.[ch]	 			-- The non-DFA algorithm
+     rxanal.[ch] rxsuper.[ch] rxnfa.[ch]	-- The DFA algorithm
+
+
+File: rx.info,  Node: Improvements to Make,  Prev: Rx Theory,  Up: Top
+
+Improvements to Make
+====================
+
+   An approximation of the GNU entry points is needed.  This can not
+easily be an exact approximation because the GNU entry points have no
+function for freeing a compiled expression - they assume that compiled
+expressions can be freed using a single call to "free(3)".  For that
+reason, do not use the names of the old GNU entry points ...use "rx_"
+instead.
+
+   This version of Rx hasn't been profiled and tuned.
+
+   It might be nice to have some C++ types to hide reference counting
+and provide handy constructors for rexp_nodes and nfa parts.
+
+   Right now, the regexp->regular regexp mapping in rxsimp.[ch] is
+cached for a particular input expression.  I think it would probably be
+a big win in many situations if it were cached, like unique nfas (c.f.
+rxunfa.[ch]), for equivalent expressions.
+
+   It would speed up matching to lift the non-regular constructs to the
+top of the syntax tree.   e.g., if you have:
+
+     pattern:  "abc$"
+     
+     syntax tree: (concat (cset "a")
+     	             (concat (cset "b")
+     			     (concat (cset "c")
+     				     (operator "$"))))
+
+   it involves a lot more work (in "next_solution) than if you have the
+equivalent:
+
+     same pattern:  "abc$"
+     
+     syntax tree: (concat (concat (cset "a")
+     			     (concat (cset "b")
+     				     (cset "c")))
+     		     (operator "$"))
+
+   in fact, while doing that, notice that subtrees of nothing-but-concat
+can conceivably be optimized so that next_solution just uses "strcmp".
+
+   For that matter, a tree which is a disjunction of conjunction (a
+tree of "|" whose leaves are trees of concat nodes) could be optimized
+to use a table method (Boyer/Moore?).  Again, this would be for
+next_solution but might involve adding stuff to rx_posix_analyze_rexp.
+
+   As more and more optimizations are added, programmers should be given
+simple control over which optimizations are important for a particular
+pattern.  For example, packages in emacs often include a few regexps
+that are used heavily - it would be worth the trouble to arrange for
+those regexps to be compiled specially.
+
+   Static compilation of regexps is mostly a job for lex, but posix
+patterns are more general and have a nicer interface.  What's more, it'd
+be nice to have the benefits of static compilation even for dynamicly
+loaded regexps (e.g., imagine if when an emacs lisp file is
+byte-compiled, the regexps it contains are also compiled).
+
+   A lot of optimizations apply to just syntax trees.  One approach to
+static compilation is to make an ugly but fast-reading syntax for trees,
+and a printer for that syntax.  Then, after optimiztaions, a pattern
+could be stored as a string and later read back in, already optimized.
+
+   A similar trick could be done for the nfa built in rxnfa.c.
+
+   next_solution already considers the length of a fixed-length
+subexpression, but many more lenght optimizations are possible.  I'd
+guess these will pay off well.
+
+
+
+Tag Table:
+Node: Top83
+Node: Posix Entry Points638
+Node: POSIX Regexp Compilation1546
+Node: Flags for POSIX Regexps5626
+Node: Matching POSIX Regexps6530
+Node: Regexp Subexpressions8688
+Node: Subexpression Complications10740
+Node: Regexp Cleanup13096
+Node: Performance Considerations15419
+Node: Avoiding Redundant Compilations15989
+Node: Controlling Memory Use18120
+Node: Semantic Tests18719
+Node: Running the Tests19445
+Node: Adding New Tests20369
+Node: General Functions21121
+Node: Compiling Expressions21775
+Node: Posixly Correct Matches24531
+Node: Hairy Matches28136
+Node: NFA Functions31078
+Node: Rx Theory31742
+Node: Improvements to Make33591
+
+End Tag Table

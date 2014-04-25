@@ -1,0 +1,17 @@
+Only in new/rx: Makefile.os2
+Only in new/rx: gnurx.def
+diff -cbr orig/rx/rxdbug.c new/rx/rxdbug.c
+*** orig/rx/rxdbug.c	Sun Dec 31 06:16:00 1995
+--- new/rx/rxdbug.c	Thu Feb 08 14:38:48 1996
+***************
+*** 28,33 ****
+--- 28,35 ----
+  #include "rxall.h"
+  #include "rxgnucomp.h"
+  #include "rxnfa.h"
++ 
++ #include <stdio.h>
+  
+  
+  #ifdef __GNUC__
+
